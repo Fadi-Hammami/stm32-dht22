@@ -1,0 +1,130 @@
+=====================================================================
+MiniProjet - Surveillance de température avec STM32 et DHT22 (FreeRTOS)
+=====================================================================
+ 
+DESCRIPTION COURTE (pour le champ "Description" de GitHub)
+----------------------------------------------------------
+Surveillance de température avec capteur DHT22 sur STM32 Nucleo-F446RE, FreeRTOS et alerte via UART.
+ 
+ 
+PRÉSENTATION
+------------
+Ce projet est un système embarqué temps réel basé sur un microcontrôleur
+STM32F446RE (carte Nucleo, cœur ARM Cortex-M4F). Il mesure la température
+ambiante à l'aide d'un capteur numérique DHT22 (AM2302), affiche les valeurs
+sur un terminal série et déclenche une alerte lorsque la température
+dépasse un seuil défini.
+ 
+Le projet a été développé avec STM32CubeIDE, la bibliothèque HAL de STMicroelectronics
+et le système d'exploitation temps réel FreeRTOS (interface CMSIS-RTOS V2).
+ 
+ 
+FONCTIONNALITÉS
+---------------
+- Lecture de la température via le capteur DHT22 (protocole 1-Wire propriétaire).
+- Mesure toutes les 2 secondes.
+- Envoi de la température sur le port série (UART2, 115200 bauds) au format :
+      Temperature = 25.40 C
+- Alarme lorsque la température dépasse 30 °C :
+      !!! ALERTE TEMPERATURE !!!
+  (accompagnée d'un caractère sonore "bip" sur le terminal).
+- Architecture multitâche avec synchronisation par sémaphore binaire.
+ 
+ 
+ARCHITECTURE LOGICIELLE
+-----------------------
+Tâches FreeRTOS :
+  1. defaultTask      - tâche par défaut générée par CubeMX (inactive).
+  2. TemperatureTask  - lit le DHT22, envoie la valeur par UART et libère
+                        le sémaphore si la température dépasse 30 °C.
+  3. AlarmTask        - attend le sémaphore (tempSemaphore) puis envoie
+                        le message d'alerte.
+ 
+Synchronisation :
+  - tempSemaphore : sémaphore binaire entre TemperatureTask et AlarmTask.
+ 
+Pilote DHT22 (Core/Src/dht22.c et Core/Inc/dht22.h) :
+  - Génération du signal de démarrage sur la broche de données.
+  - Vérification de la réponse du capteur.
+  - Lecture des 40 bits de données (bit par bit).
+  - Calcul de la température à partir des octets reçus.
+  - Délais en microsecondes réalisés avec le timer TIM2 (prescaler 84-1,
+    soit 1 tick = 1 µs).
+ 
+ 
+MATÉRIEL UTILISÉ
+----------------
+- Carte STM32 Nucleo-F446RE (microcontrôleur STM32F446RETx).
+- Capteur de température DHT22 / AM2302.
+- Câble USB (alimentation, programmation et liaison série via ST-LINK).
+- Résistance de rappel (pull-up) de 4,7 kΩ à 10 kΩ sur la ligne de données
+  (si le module DHT22 n'en possède pas déjà une).
+ 
+ 
+CÂBLAGE
+-------
+  DHT22 VCC   ->  3.3V (ou 5V selon le module)
+  DHT22 DATA  ->  PA1
+  DHT22 GND   ->  GND
+ 
+  Liaison série : USART2 (PA2 = TX, PA3 = RX), disponible via le port USB
+  du ST-LINK de la carte Nucleo.
+ 
+  LED utilisateur LD2 : PA5.   Bouton utilisateur B1 : PC13.
+ 
+ 
+CONFIGURATION
+-------------
+  - Microcontrôleur : STM32F446RETx
+  - UART2           : 115200 bauds, 8 bits, sans parité, 1 bit de stop
+  - TIM2            : timer 32 bits, base de temps de 1 µs
+  - Base de temps HAL : TIM6 (FreeRTOS utilise SysTick)
+  - Seuil d'alarme  : 30 °C (modifiable dans StartTask02, fichier main.c)
+  - Période de mesure : 2000 ms (osDelay dans StartTask02)
+ 
+ 
+STRUCTURE DU PROJET
+-------------------
+  MiniProjet/
+  |-- Core/
+  |   |-- Inc/          (main.h, dht22.h, FreeRTOSConfig.h, ...)
+  |   +-- Src/          (main.c, dht22.c, freertos.c, ...)
+  |-- Drivers/          (HAL STM32F4 et CMSIS)
+  |-- Middlewares/      (FreeRTOS)
+  |-- MiniProjet.ioc    (configuration STM32CubeMX)
+  +-- *.ld              (scripts de l'éditeur de liens)
+ 
+ 
+UTILISATION
+-----------
+  1. Ouvrir le projet dans STM32CubeIDE (File > Open Projects from File System,
+     ou importer le dossier MiniProjet).
+  2. Compiler le projet (Build).
+  3. Brancher la carte Nucleo en USB et téléverser le programme (Run / Debug).
+  4. Ouvrir un terminal série (PuTTY, Tera Term, ou le terminal de
+     STM32CubeIDE) sur le port COM de la carte à 115200 bauds.
+  5. Observer les mesures de température toutes les 2 secondes.
+     Chauffer légèrement le capteur (au-dessus de 30 °C) pour déclencher
+     l'alarme.
+ 
+ 
+NOTES
+-----
+  - Le pilote actuel lit et affiche uniquement la température. Le DHT22
+    fournit aussi l'humidité (deux premiers octets de la trame), qui peut
+    être ajoutée facilement dans une évolution du projet.
+  - Le DHT22 nécessite au moins 2 secondes entre deux lectures.
+  - Le pilote ne vérifie pas encore la somme de contrôle (checksum) ni les
+    températures négatives : pistes d'amélioration possibles.
+ 
+ 
+OUTILS ET TECHNOLOGIES
+----------------------
+  Langage C | STM32CubeIDE | STM32CubeMX | HAL | FreeRTOS (CMSIS-RTOS V2)
+  | UART | Timer | GPIO | Capteur DHT22
+ 
+ 
+AUTEUR
+------
+  Fadi Hammami
+ 

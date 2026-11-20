@@ -1,0 +1,14 @@
+@"
+Debug/
+Release/
+build/
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.su
+*.cyclo
+.settings/
+"@ | Out-File -Encoding utf8 .gitignore
